@@ -1,11 +1,11 @@
 import socket
 import serial
 import threading
+import config
 
-# Broadcast address localhost (127.0.0.1)
-broadcast_address = "127.0.0.1"
-port = 12345  # Port number
-serial_port = "COM5"
+broadcast_address = config.SERVER_ADDRESS
+port = config.PORT 
+serial_port = config.SERIAL_PORT
 
 # Global variables for distance and angle
 distance = 0
