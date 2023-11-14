@@ -1,6 +1,9 @@
 #include "WiFi.h"
 #include "AsyncUDP.h"
 #include <ESP32Servo.h>
+#include <NewPing.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 
 const char * ssid = "MJO";
@@ -20,11 +23,12 @@ const int echoPin = 27;
 long duration;
 int distance;
 
-bool badDistance = false;
+unsigned int pingTime = 50;
+
+NewPing sonar(trigPin, echoPin);
 
 void onPacket(AsyncUDPPacket packet) {
   // improve distance measurements
-  badDistance = true;
   Serial.print("Data: ");
   Serial.write(packet.data(), packet.length());
   Serial.println();
@@ -46,6 +50,12 @@ void setupWifi() {
             delay(1000);
         }
     }
+    if(udp.listen(localPort)) {
+        Serial.print("UDP Listening on IP: ");
+        Serial.println(WiFi.localIP());
+        udp.onPacket(onPacket);
+    }
+
 }
 
 void setupSonar() {
@@ -63,27 +73,17 @@ void setupServo() {
 }
 
 void setup() {
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable   detector
   Serial.begin(115200);
   setupWifi();
   setupSonar();
 }
 
 void updateDistance() {
-    // Clears the trigPin
-  badDistance = false;
-
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  // Sets the trigPin on HIGH state for 10 micro seconds
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  // Reads the echoPin, returns the sound wave travel time in microseconds
-  duration = pulseIn(echoPin, HIGH);
-  // Calculating the distance based on the speed of sound
-  const int calculatedDistance = duration * 0.034 / 2;
-  if(badDistance) return;
-  distance = calculatedDistance;
+    if (millis() >= pingTime) {
+      distance = sonar.ping_cm();
+      pingTime += 50;
+    }
 }
 
 void loop()

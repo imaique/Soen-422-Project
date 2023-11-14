@@ -1,5 +1,6 @@
 import socket
 import struct
+import time
 
 
 def receive_data():
@@ -12,11 +13,9 @@ def receive_data():
         # Send data to Arduino
         server_socket.send(data_to_send.encode())
         print("Data sent to Arduino: {}".format(data_to_send))
-        data, addr = server_socket.recvfrom(1024)
-        print(data.decode())
-        if len(data) == 8:  # Assuming each float is 4 bytes
-            angle, distance = struct.unpack("ff", data)
-            print(f"Received: Angle={angle}, Distance={distance}")
+        [distance, angle], addr = server_socket.recvfrom(8)
+        print(f"Received: Angle={angle}, Distance={distance}")
+        time.sleep(0.1)
 
 
 if __name__ == "__main__":
