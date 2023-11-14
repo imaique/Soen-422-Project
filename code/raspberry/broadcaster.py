@@ -1,34 +1,78 @@
 import socket
 import serial
-import time
+import threading
 
-# broadcast address localhost (127.0.0.1)
+# Broadcast address localhost (127.0.0.1)
 broadcast_address = "127.0.0.1"
-port = 12345  # port number
+port = 12345  # Port number
 serial_port = "COM5"
 
+# Global variables for distance and angle
+distance = 0
+angle = 0
 
-# Create a UDP socket
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-
-# TODO: Add logic to wait until port is busy before starting to listen
-ser = serial.Serial(serial_port, 115200)
+# Create a threading condition object
+condition = threading.Condition()
 
 
-# Data to be sent
-while True:
-    if ser.in_waiting:
-        line = ser.readline().decode().strip()
-        if line.startswith("da"):
-            [distance, angle] = [int(x) for x in line[2:].split(",")]
-            print("Received:", line)
-            try:
-                # Send the broadcast message
+# Function to update distance and angle from serial
+def get_serial():
+    global distance, angle
+    ser = serial.Serial(serial_port, 115200)
+
+    while True:
+        if ser.in_waiting:
+            line = ser.readline().decode().strip()
+            if line.startswith("da"):
+                [dist, ang] = [int(x) for x in line[2:].split(",")]
+
+                # Acquire the condition lock and update the values
+                with condition:
+                    distance = dist
+                    angle = ang
+                    # Notify all waiting threads that new data is available
+                    condition.notify_all()
+
+                print("Received:", line)
+
+
+# Function to handle a client's connection
+def handle_client(client_socket: socket, address):
+    print(f"Connected to {address}")
+
+    while True:
+        try:
+            # Wait for an update in the data
+            with condition:
+                condition.wait()
+
+                # Send the message over the client's socket
                 data = distance.to_bytes(4, byteorder="big") + angle.to_bytes(
                     4, byteorder="big"
                 )
-                sock.sendto(data, (broadcast_address, port))
-                print(f"Broadcasted message to {broadcast_address}:{port}")
-            except socket.error as e:
-                print("Error:", e)
+                client_socket.send(data)
+
+            print(f"Sent message to {address}")
+        except socket.error as e:
+            print("Error:", e)
+            break
+
+    # Close the connection when done
+    client_socket.close()
+
+
+# Start the serial thread
+serial_thread = threading.Thread(target=get_serial)
+serial_thread.start()
+
+# Create a TCP socket
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.bind(("localhost", port))  # Bind to localhost and the specified port
+sock.listen(5)  # Listen for incoming connections with a backlog of 5
+
+print(f"Waiting for connections on port {port}...")
+
+while True:
+    client, addr = sock.accept()  # Accept a new connection
+    client_thread = threading.Thread(target=handle_client, args=(client, addr))
+    client_thread.start()
