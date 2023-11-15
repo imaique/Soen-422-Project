@@ -22,18 +22,22 @@ def get_serial():
 
     while True:
         if ser.in_waiting:
-            line = ser.readline().decode().strip()
-            if line.startswith("da"):
-                [dist, ang] = [int(x) for x in line[2:].split(",")]
+            try:
+                
+                line = ser.readline().decode('utf-8').strip()
+                if line.startswith("da"):
+                    [dist, ang] = [int(x) for x in line[2:].split(",")]
 
-                # Acquire the condition lock and update the values
-                with condition:
-                    distance = dist
-                    angle = ang
-                    # Notify all waiting threads that new data is available
-                    condition.notify_all()
+                    # Acquire the condition lock and update the values
+                    with condition:
+                        distance = dist
+                        angle = ang
+                        # Notify all waiting threads that new data is available
+                        condition.notify_all()
 
-                print("Received:", line)
+                    print("Received:", line)
+            except UnicodeDecodeError as e:
+                print(f'caught: {e}. Skipping')
 
 
 # Function to handle a client's connection

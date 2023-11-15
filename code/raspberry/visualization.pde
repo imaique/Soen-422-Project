@@ -1,7 +1,6 @@
 import java.io.IOException;
 import java.net.*;
 import java.io.*;
-import org.json.JSONObject;
 
 
 // defubes variables
@@ -45,10 +44,7 @@ void draw() {
     if(in.available() > 0) {
 
       iDistance = in.readInt();
-      in.readInt();
-      iAngle++;
-      iAngle %= 180;
-      //iAngle = in.readInt();
+      iAngle = in.readInt();
       print(iDistance);
       print(",");
       println(iAngle);
