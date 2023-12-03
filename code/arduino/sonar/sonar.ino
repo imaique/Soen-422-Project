@@ -94,6 +94,33 @@ void setup() {
 
 void notify_object(int angle1, int angle2, int distance) {
   int angle_start = min(angle1, angle2), angle_end = max(angle1, angle2);
+  if(angle_end - angle_start < 3) return;
+  if(WiFi.status() != WL_CONNECTED) connectToWiFi();
+  HTTPClient http;
+
+  String serverPath = serverName + "?start=" + ;
+  
+  // Your Domain name with URL path or IP address with path
+  http.begin(serverPath.c_str());
+  
+  // If you need Node-RED/server authentication, insert user and password below
+  //http.setAuthorization("REPLACE_WITH_SERVER_USERNAME", "REPLACE_WITH_SERVER_PASSWORD");
+  
+  // Send HTTP GET request
+  int httpResponseCode = http.GET();
+  
+  if (httpResponseCode>0) {
+    Serial.print("HTTP Response code: ");
+    Serial.println(httpResponseCode);
+    String payload = http.getString();
+    Serial.println(payload);
+  }
+  else {
+    Serial.print("Error code: ");
+    Serial.println(httpResponseCode);
+  }
+  // Free resources
+  http.end();
   Serial.println("Detected object from " + String(angle_start) + " to " + String(angle_end) + ", " + String(distance) + " cm away.");
 }
 
