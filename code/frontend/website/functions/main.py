@@ -26,12 +26,36 @@ detected object:
     name
 
 """
-
+# test
 
 CORRECTION_FACTOR = 2
 
+# add timestamp in order to filter frontend from last refresh!!!!    
+
+def requested_refresh(db) -> bool:
+    order = db.collection('orders').limit(1).get()
+
+    refresh = False
+    if order:
+        order = order[0]
+        order_dict = order.to_dict()
+        refresh = order_dict['refresh']
+        if refresh:
+            order.update({'refresh': False})
+            return True
+
 @https_fn.on_request()
 def on_add_detected_object(request: https_fn.Request) -> https_fn.Response:
+    db = firestore.client()
+
+    # if requested refresh, then clear the detected objects and reset refresh
+    if requested_refresh(db):
+        response_dict = {
+            'refresh': True
+        }
+        return json.dumps(response_dict)
+
+
     if request.method != "POST":
         return https_fn.Response("Forbidden", status=403)
     
@@ -40,7 +64,6 @@ def on_add_detected_object(request: https_fn.Request) -> https_fn.Response:
     end_angle = int(request.args.get('end'))
     distance = int(request.args.get('distance'))
 
-    db = firestore.client()
     expected_objects_ref = db.collection('expected_objects')
     detected_objects_ref = db.collection('detected_objects')
 
@@ -75,6 +98,10 @@ def on_add_detected_object(request: https_fn.Request) -> https_fn.Response:
         }
     
     detected_objects_ref.add(informed_object)
+    
+    response_dict = {
+        'object': informed_object,
+    }
 
-    return json.dumps(informed_object, default=str)
+    return json.dumps(response_dict, default=str)
 

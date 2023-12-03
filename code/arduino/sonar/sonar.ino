@@ -3,6 +3,9 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include <WiFi.h>
+#include <Arduino_JSON.h>
+#include <HTTPClient.h>
+
 
 const char* ssid     = "MJO";
 const char* password = "michaelosuji";
@@ -31,6 +34,11 @@ int distance;
 
 unsigned long lastPingTime = 0;
 unsigned int pingPeriod = 50;
+
+bool completedSweep = false;
+
+const String addObjectEndpoint = "https://on-add-detected-object-cwle57ukha-uc.a.run.app";
+//const String addObjectEndpoint = "https://httpbin.org/response-headers";
 
 NewPing sonar(trigPin, echoPin);
 
@@ -83,7 +91,6 @@ void moveServo() {
   }
 }
 
-
 void setup() {
   Serial.begin(115200);
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable   detector
@@ -96,24 +103,38 @@ void notify_object(int angle1, int angle2, int distance) {
   int angle_start = min(angle1, angle2), angle_end = max(angle1, angle2);
   if(angle_end - angle_start < 3) return;
   if(WiFi.status() != WL_CONNECTED) connectToWiFi();
+  Serial.println(WiFi.status() == WL_CONNECTED);
   HTTPClient http;
 
-  String serverPath = serverName + "?start=" + ;
+  String serverPath = addObjectEndpoint + "?start=" + String(angle_start) + "&end=" + String(angle_end) + "&distance=" + String(distance);
   
   // Your Domain name with URL path or IP address with path
+  Serial.println(serverPath);
   http.begin(serverPath.c_str());
   
   // If you need Node-RED/server authentication, insert user and password below
-  //http.setAuthorization("REPLACE_WITH_SERVER_USERNAME", "REPLACE_WITH_SERVER_PASSWORD");
+  //http.addHeader("Authorization", "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6ImU0YWRmYjQzNmI5ZTE5N2UyZTExMDZhZjJjODQyMjg0ZTQ5ODZhZmYiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTA3NzUwNjM4NTUzMTEyNjc4MDM0IiwiZW1haWwiOiJvc3VqaW0yMDEyQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJhdF9oYXNoIjoicVBybGVSczRrOG1paXlzUlJMRVJMZyIsIm5iZiI6MTcwMTU4NjQ1OCwiaWF0IjoxNzAxNTg2NzU4LCJleHAiOjE3MDE1OTAzNTgsImp0aSI6IjBhOTQ4ODhiNjE0ZTYwN2RiOTFhNzQwYjlhMTZlOGJhOTVmNDAwOGEifQ.Ik_a08kocdxHh4dg0Hp4yd_2_yDmpezlaoQqE_dqpDLmBQU1O-b2yN5ZyKO8Xgzl3RWN-K95TY2IiOEvfgd-Q6x7lNMtB5R1iHjhRsz6Oxp74z-lVUx4I2zS5DJPuETysXotT_cyoSDq1vgSuqZGU8v6QyUiwzSkYWpM8B94vNm9leQpn1RBSX3LXkdpAPevu2B-TQOtTnM9XsWqYZaXiE91iY37YeqL3xI4H8i7El-tSDACefGMQJNKaV5wwdQJPIPSlYtOnAUWlx_jzDHXfP_vXWYhcviEzdUexHdqxVf6MU02uoiXS7gIpChBY4OFefOQ9mzJNr1A2IDwa2ENGQ");
   
-  // Send HTTP GET request
-  int httpResponseCode = http.GET();
+  // Send HTTP POST request
+  int httpResponseCode = http.POST("");
   
   if (httpResponseCode>0) {
     Serial.print("HTTP Response code: ");
     Serial.println(httpResponseCode);
     String payload = http.getString();
     Serial.println(payload);
+    JSONVar response = JSON.parse(payload);
+    if(response.hasOwnProperty("object")) {
+      String name = response["name"];
+      bool expected = (bool)response["expected"];
+      
+    } else if(response.hasOwnProperty("refresh")){
+      // reset sweep
+      for (int i = 0; i < profile_length; i++) neutral[i] = 0;
+      completedSweep = false;
+    } else {
+      Serial.println("Response cannot be parsed");
+    }
   }
   else {
     Serial.print("Error code: ");
@@ -133,7 +154,6 @@ bool same_distance(int base_distance, int new_distance) {
 }
 
 void distanceUpdated(const int distance) {
-  static bool completedSweep = false;
   static int prev_angle = angle;
   const int base_distance = neutral[angle];
 
