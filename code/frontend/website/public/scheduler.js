@@ -1,3 +1,7 @@
+import { db } from "./firebase.js"
+import { collection, addDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+
 const canvas = document.getElementById('sonarCanvas');
 const ctx = canvas.getContext('2d');
 const modeRadios = document.getElementsByName('mode');
@@ -79,6 +83,19 @@ function isInSemiCircle(x, y) {
     return y <= arcY && distanceFromCenter <= arcRadius;
 }
 
+function getAngle(x, y) {
+    let theta = Math.atan2(arcY - y, x - arcX); // Arc center is (arcX, arcY)
+    if (theta < 0) { // Convert from [-pi, pi] to [0, 2*pi]
+        theta += 2 * Math.PI;
+    }
+    return Math.floor(theta * (180 / Math.PI)); // Convert radians to degrees
+}
+
+function getDistanceFromSonar(x, y) {
+    const dx = x - arcX;
+    const dy = arcY - y; // invert the y-axis because canvas y increases downwards
+    return Math.floor(Math.sqrt(dx * dx + dy * dy));
+}
 
 // Array to hold the circles
 let circles = [];
@@ -87,6 +104,26 @@ let circles = [];
 function addCircle(x, y, radius, startTime, endTime, name) {
     if (!isInSemiCircle(x,y)) return; // Ensures circles are only in the semi-circle
     circles.push({x, y, radius, startTime, endTime, name});
+
+    const startAngle = getAngle(x - radius, y); // Left point of the circle
+    const endAngle = getAngle(x + radius, y); // Right point of the circle
+    console.log(db)
+    addDoc(collection(db, 'expected_objects'), {
+        name: name,
+        start_time: startTime,
+        end_time: endTime,
+        start: startAngle,
+        end: endAngle,
+        distance: getDistanceFromSonar(x,y)
+    }).then((docRef) => {
+        // Store the document reference ID within the circle object
+        // maybe find more robust way to do this
+        circles[circles.length - 1].docId = docRef.id;
+        console.log("added to firestore")
+        console.log(circles[circles.length - 1]);
+    }).catch((error) => {
+        console.error("Error adding document: ", error);
+    });
     console.log(name)
     resetForm();
     drawCircles();

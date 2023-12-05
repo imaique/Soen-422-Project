@@ -55,10 +55,10 @@ def on_add_detected_object(request: https_fn.Request) -> https_fn.Response:
         }
         return json.dumps(response_dict)
 
-
+    """
     if request.method != "POST":
         return https_fn.Response("Forbidden", status=403)
-    
+    """
     timestamp = datetime.datetime.now(tz=pytz.UTC)
     start_angle = int(request.args.get('start'))
     end_angle = int(request.args.get('end'))
@@ -102,6 +102,6 @@ def on_add_detected_object(request: https_fn.Request) -> https_fn.Response:
     response_dict = {
         'object': informed_object,
     }
+    return  https_fn.Response(response=json.dumps(response_dict, default=str), content_type="json")
 
-    return json.dumps(response_dict, default=str)
 

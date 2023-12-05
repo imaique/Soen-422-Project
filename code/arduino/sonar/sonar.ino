@@ -5,6 +5,8 @@
 #include <WiFi.h>
 #include <Arduino_JSON.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+
 
 
 const char* ssid     = "MJO";
@@ -37,8 +39,10 @@ unsigned int pingPeriod = 50;
 
 bool completedSweep = false;
 
-const String addObjectEndpoint = "https://on-add-detected-object-cwle57ukha-uc.a.run.app";
+const String addObjectEndpoint = "https://on-add-detected-object-cwle57ukha-uc.a.run.app/";
 //const String addObjectEndpoint = "https://httpbin.org/response-headers";
+
+const String token = "eyJhbGciOiJSUzI1NiIsImtpZCI6ImU0YWRmYjQzNmI5ZTE5N2UyZTExMDZhZjJjODQyMjg0ZTQ5ODZhZmYiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTA3NzUwNjM4NTUzMTEyNjc4MDM0IiwiZW1haWwiOiJvc3VqaW0yMDEyQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJhdF9oYXNoIjoidG8tdlFYQnRaT2lUMV9GcFJFbmh1QSIsIm5iZiI6MTcwMTYyMzkzNSwiaWF0IjoxNzAxNjI0MjM1LCJleHAiOjE3MDE2Mjc4MzUsImp0aSI6ImJmMmMxZTczMDJhNDhiMjM4YTE4NzAwY2RlYWFhYmY1YTQ4NWNjODUifQ.bloOr6wpl7_gljkKgCrURyKHPQY__tw4U0OmiAEDq5lItTrUvzuGZmLXWmBK5HE7suXoZLToTcl-u_-oo897MI6E8Q1H00ZhdFfMVPLu5D5uf5LxJphoICxCgWb2GnIpLhh1iNgza1MMir_c6-PoH7JcOrnzP6CW9k-GkAWQBXhdLLIQxSvlgnc1YAm9Nrrb5jAV-a7YD3_lFBMOIN80sdVnIEhYuf1Meg215mHOEBBe8RI6ZIJhP_0bgLbuAa91877zpJZ2lIie-FPlzmVhhlLTf7z7bCoWXSmRcGgqz5WFAmxAAusmnTEtCG7NzslR4p7PTL2lDWvVK8hnrS5ciA";
 
 NewPing sonar(trigPin, echoPin);
 
@@ -104,44 +108,57 @@ void notify_object(int angle1, int angle2, int distance) {
   if(angle_end - angle_start < 3) return;
   if(WiFi.status() != WL_CONNECTED) connectToWiFi();
   Serial.println(WiFi.status() == WL_CONNECTED);
-  HTTPClient http;
+  WiFiClientSecure *client = new WiFiClientSecure;
+  if(!client) {
+    Serial.println("[HTTPS] Unable to connect");
+    return;
+  }
+  client -> setInsecure();
+  {
+    HTTPClient http;
 
-  String serverPath = addObjectEndpoint + "?start=" + String(angle_start) + "&end=" + String(angle_end) + "&distance=" + String(distance);
-  
-  // Your Domain name with URL path or IP address with path
-  Serial.println(serverPath);
-  http.begin(serverPath.c_str());
-  
-  // If you need Node-RED/server authentication, insert user and password below
-  //http.addHeader("Authorization", "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6ImU0YWRmYjQzNmI5ZTE5N2UyZTExMDZhZjJjODQyMjg0ZTQ5ODZhZmYiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTA3NzUwNjM4NTUzMTEyNjc4MDM0IiwiZW1haWwiOiJvc3VqaW0yMDEyQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJhdF9oYXNoIjoicVBybGVSczRrOG1paXlzUlJMRVJMZyIsIm5iZiI6MTcwMTU4NjQ1OCwiaWF0IjoxNzAxNTg2NzU4LCJleHAiOjE3MDE1OTAzNTgsImp0aSI6IjBhOTQ4ODhiNjE0ZTYwN2RiOTFhNzQwYjlhMTZlOGJhOTVmNDAwOGEifQ.Ik_a08kocdxHh4dg0Hp4yd_2_yDmpezlaoQqE_dqpDLmBQU1O-b2yN5ZyKO8Xgzl3RWN-K95TY2IiOEvfgd-Q6x7lNMtB5R1iHjhRsz6Oxp74z-lVUx4I2zS5DJPuETysXotT_cyoSDq1vgSuqZGU8v6QyUiwzSkYWpM8B94vNm9leQpn1RBSX3LXkdpAPevu2B-TQOtTnM9XsWqYZaXiE91iY37YeqL3xI4H8i7El-tSDACefGMQJNKaV5wwdQJPIPSlYtOnAUWlx_jzDHXfP_vXWYhcviEzdUexHdqxVf6MU02uoiXS7gIpChBY4OFefOQ9mzJNr1A2IDwa2ENGQ");
-  
-  // Send HTTP POST request
-  int httpResponseCode = http.POST("");
-  
-  if (httpResponseCode>0) {
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
-    String payload = http.getString();
-    Serial.println(payload);
-    JSONVar response = JSON.parse(payload);
-    if(response.hasOwnProperty("object")) {
-      String name = response["name"];
-      bool expected = (bool)response["expected"];
-      
-    } else if(response.hasOwnProperty("refresh")){
-      // reset sweep
-      for (int i = 0; i < profile_length; i++) neutral[i] = 0;
-      completedSweep = false;
-    } else {
-      Serial.println("Response cannot be parsed");
+    String serverPath = addObjectEndpoint + "?start=" + String(angle_start) + "&end=" + String(angle_end) + "&distance=" + String(distance);
+    
+    // Your Domain name with URL path or IP address with path
+    Serial.println(serverPath);
+      http.setTimeout(20000);
+    http.setConnectTimeout(20000);
+    http.begin(*client, serverPath.c_str());
+    
+    // If you need Node-RED/server authentication, insert user and password below
+    http.addHeader("Authorization", "Bearer " + token);
+    //http.addHeader("Content-Length", "0");
+    // Send HTTP POST request
+
+    int httpResponseCode = http.GET();
+    
+    if (httpResponseCode>0) {
+      Serial.print("HTTP Response code: ");
+      Serial.println(httpResponseCode);
+      String payload = http.getString();
+      Serial.println(payload);
+      JSONVar response = JSON.parse(payload);
+      if(response.hasOwnProperty("object")) {
+        String name = response["name"];
+        bool expected = (bool)response["expected"];
+        
+      } else if(response.hasOwnProperty("refresh")){
+        // reset sweep
+        for (int i = 0; i < profile_length; i++) neutral[i] = 0;
+        completedSweep = false;
+      } else {
+        Serial.println("Response cannot be parsed");
+      }
     }
+    else {
+      Serial.print("Error code: ");
+      Serial.println(httpResponseCode);
+    }
+    // Free resources
+    http.end();
   }
-  else {
-    Serial.print("Error code: ");
-    Serial.println(httpResponseCode);
-  }
-  // Free resources
-  http.end();
+    delete client;
+
   Serial.println("Detected object from " + String(angle_start) + " to " + String(angle_end) + ", " + String(distance) + " cm away.");
 }
 
