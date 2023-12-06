@@ -42,9 +42,13 @@ bool completedSweep = false;
 const String addObjectEndpoint = "https://on-add-detected-object-cwle57ukha-uc.a.run.app/";
 //const String addObjectEndpoint = "https://httpbin.org/response-headers";
 
-const String token = "eyJhbGciOiJSUzI1NiIsImtpZCI6ImU0YWRmYjQzNmI5ZTE5N2UyZTExMDZhZjJjODQyMjg0ZTQ5ODZhZmYiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTA3NzUwNjM4NTUzMTEyNjc4MDM0IiwiZW1haWwiOiJvc3VqaW0yMDEyQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJhdF9oYXNoIjoidG8tdlFYQnRaT2lUMV9GcFJFbmh1QSIsIm5iZiI6MTcwMTYyMzkzNSwiaWF0IjoxNzAxNjI0MjM1LCJleHAiOjE3MDE2Mjc4MzUsImp0aSI6ImJmMmMxZTczMDJhNDhiMjM4YTE4NzAwY2RlYWFhYmY1YTQ4NWNjODUifQ.bloOr6wpl7_gljkKgCrURyKHPQY__tw4U0OmiAEDq5lItTrUvzuGZmLXWmBK5HE7suXoZLToTcl-u_-oo897MI6E8Q1H00ZhdFfMVPLu5D5uf5LxJphoICxCgWb2GnIpLhh1iNgza1MMir_c6-PoH7JcOrnzP6CW9k-GkAWQBXhdLLIQxSvlgnc1YAm9Nrrb5jAV-a7YD3_lFBMOIN80sdVnIEhYuf1Meg215mHOEBBe8RI6ZIJhP_0bgLbuAa91877zpJZ2lIie-FPlzmVhhlLTf7z7bCoWXSmRcGgqz5WFAmxAAusmnTEtCG7NzslR4p7PTL2lDWvVK8hnrS5ciA";
+const String token = "eyJhbGciOiJSUzI1NiIsImtpZCI6ImU0YWRmYjQzNmI5ZTE5N2UyZTExMDZhZjJjODQyMjg0ZTQ5ODZhZmYiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTA3NzUwNjM4NTUzMTEyNjc4MDM0IiwiZW1haWwiOiJvc3VqaW0yMDEyQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJhdF9oYXNoIjoibklJSlNEQ1lTbzU0WTd6OHdRNF9qdyIsIm5iZiI6MTcwMTgwNTM1MywiaWF0IjoxNzAxODA1NjUzLCJleHAiOjE3MDE4MDkyNTMsImp0aSI6IjVlNmRjMzcxOTdlNzc2MzY2YjcwMjZhNWExNGIzM2YxY2U3ZDEyNjMifQ.BBumAPX9ndleb7TbbS0M1mo9kou9eXo0PSG0jh1oGdaTSTIzYxcY-Dqguye0u-PpAve2wSEjehU-YzpXfipw6VwT7Fe3TvnU64OjYFof4fWICdwTPquzpWtdvYX-sylDV9n6eb-JBAyNJ-OqdRG_HJfupDQHnKLxzxe-fV-GLx2-RZ-YSAGL_h9cJ1r-zPoan3NpCjWVCxZQh1iTW94I4T3ZJcs97rTdnelAftrT_BXi1Xke6j-ZJBoraeIrRghUcqr20yFvFedHl4M6MXpLqafmg4_gJl8PMex5RFziu0FQEo-pOzoKYJGYeJYlwCDEkAxIwtvb9cvhYA38r69-zQ";
 
 NewPing sonar(trigPin, echoPin);
+
+HardwareSerial Sender(1);   // Define a Serial port instance called 'Sender' using serial port 1
+#define Sender_Txd_pin 17
+#define Sender_Rxd_pin 16
 
 void connectToWiFi() {
   Serial.println("Connecting to WiFi...");
@@ -56,6 +60,10 @@ void connectToWiFi() {
   }
 
   Serial.println("WiFi connected.");
+}
+
+void setupListenerSerial() {
+  Sender.begin(115200, SERIAL_8N1, Sender_Txd_pin, Sender_Rxd_pin); // Define and start Sender serial port
 }
 
 void setupSonar() {
@@ -100,6 +108,7 @@ void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable   detector
   setupServo();
   setupSonar();
+  setupListenerSerial();
   connectToWiFi();
 }
 
@@ -132,26 +141,26 @@ void notify_object(int angle1, int angle2, int distance) {
 
     int httpResponseCode = http.GET();
     
-    if (httpResponseCode>0) {
-      Serial.print("HTTP Response code: ");
-      Serial.println(httpResponseCode);
+    if (httpResponseCode == 200) {
       String payload = http.getString();
       Serial.println(payload);
       JSONVar response = JSON.parse(payload);
-      if(response.hasOwnProperty("object")) {
-        String name = response["name"];
-        bool expected = (bool)response["expected"];
-        
-      } else if(response.hasOwnProperty("refresh")){
+      if(response.hasOwnProperty("refresh")){
         // reset sweep
         for (int i = 0; i < profile_length; i++) neutral[i] = 0;
         completedSweep = false;
+      } else if(response.hasOwnProperty("object")) {
+        // Forward payload to notifier
+        Sender.print(payload);
+        String name = response["name"];
+        bool expected = (bool)response["expected"];
+        
       } else {
         Serial.println("Response cannot be parsed");
       }
     }
     else {
-      Serial.print("Error code: ");
+      Serial.print("Unexpected code: ");
       Serial.println(httpResponseCode);
     }
     // Free resources

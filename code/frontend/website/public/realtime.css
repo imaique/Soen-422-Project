@@ -1,0 +1,27 @@
+h1 {
+    text-align: center;
+}
+
+.navbar {
+    text-align: center;
+}
+
+.content {
+    display: flex;
+    justify-content: space-between; /* Adjusts spacing between elements */
+    align-items: flex-start; /* Aligns items to the top */
+
+    padding-top: 20px;
+}
+
+#logContainer, #objectContainer {
+    width: 30%; /* Adjust as needed */
+}
+
+#sonarCanvas {
+    margin: 0 20px;
+}
+
+#pageTitle {
+    margin-top: 20px;
+}

@@ -1,6 +1,6 @@
 import { db } from "./firebase.js"
-import { collection, addDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-
+import { collection, addDoc, deleteDoc, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { arcRadius, arcX, arcY, drawRange, isInsideCircle} from './common.js'
 
 const canvas = document.getElementById('sonarCanvas');
 const ctx = canvas.getContext('2d');
@@ -9,6 +9,8 @@ const errorMessage = document.getElementById('errorMessage');
 const nameInput = document.getElementById('name');
 const startTimeInput = document.getElementById('startTime');
 const endTimeInput = document.getElementById('endTime');
+
+const EXPECTED_OJECT_DB = 'expected_objects';
 
 function getFormattedTime(date) {
     let hours = date.getHours();
@@ -55,15 +57,7 @@ function resetForm() {
 
 resetForm();
 // Draw semi-circle for sonar range
-const arcX = 250;
-const arcY = 250;
-const arcRadius = 200;
-
-ctx.beginPath();
-ctx.arc(arcX, arcY, arcRadius, Math.PI, 2 * Math.PI);
-ctx.closePath();
-ctx.stroke();
-
+drawRange(ctx)
 let currentMode = 'add';
 
 // Listen for mode changes
@@ -97,8 +91,14 @@ function getDistanceFromSonar(x, y) {
     return Math.floor(Math.sqrt(dx * dx + dy * dy));
 }
 
+function getExpectedObjects() {
+    
+}
+
 // Array to hold the circles
-let circles = [];
+let circles = getExpectedObjects();
+
+
 
 // Function to add a circle
 function addCircle(x, y, radius, startTime, endTime, name) {
@@ -108,7 +108,7 @@ function addCircle(x, y, radius, startTime, endTime, name) {
     const startAngle = getAngle(x - radius, y); // Left point of the circle
     const endAngle = getAngle(x + radius, y); // Right point of the circle
     console.log(db)
-    addDoc(collection(db, 'expected_objects'), {
+    addDoc(collection(db, EXPECTED_OJECT_DB), {
         name: name,
         start_time: startTime,
         end_time: endTime,
@@ -129,11 +129,24 @@ function addCircle(x, y, radius, startTime, endTime, name) {
     drawCircles();
 }
 
+function getExpectedCircleDoc(circle) {
+    return doc(db, EXPECTED_OJECT_DB, circle.docId)
+}
+
 // Function to remove a circle
 function removeCircle(x, y) {
     circles = circles.filter(circle => {
         const distance = Math.sqrt((x - circle.x) ** 2 + (y - circle.y) ** 2);
-        return distance > circle.radius;
+        const remove = distance <= circle.radius;
+        if (remove) {
+            deleteDoc(getExpectedCircleDoc(circle)).then(() => {
+                console.log("Document successfully deleted!");
+                console.log(circle.name)
+            }).catch((error) => {
+                console.error("Error removing document: ", error);
+            });
+        }
+        return !remove;
     });
     drawCircles();
 }
@@ -205,22 +218,36 @@ canvas.addEventListener('click', function(event) {
             removeCircle(x, y);
             break;
         case 'info':
-            // Implement info display logic
+            updateInfo(x, y);
             break;
         case 'resize':
             // Implement resize logic
             break;
     }
 });
-
+function updateInfo(x, y) {
+    const selectedCircle = circles.find(circle => isInsideCircle(x, y, circle));
+    if (selectedCircle) {
+      const formattedStartTime = getFormattedTime(selectedCircle.startTime);
+      const formattedEndTime = getFormattedTime(selectedCircle.endTime);
+      objectInfo.innerHTML = `
+        <h2>Selected Object Information</h2>
+        <p>Name: ${selectedCircle.name}</p>
+        <p>Start Time: ${formattedStartTime}</p>
+        <p>End Time: ${formattedEndTime}</p>
+        <p>Start Angle: ${getAngle(selectedCircle.x - selectedCircle.radius, selectedCircle.y)}</p>
+        <p>End Angle: ${getAngle(selectedCircle.x + selectedCircle.radius, selectedCircle.y)}</p>
+      `;
+      objectInfo.style.display = 'block';
+    } else {
+      objectInfo.innerHTML = '<p>No object selected</p>';
+    }
+}
 // TODO: Implement resizing and deletion of circles
 let draggingCircle = null;
 let offsetX, offsetY;
 
-// Function to check if a point is inside a circle
-function isInsideCircle(x, y, circle) {
-    return Math.sqrt((x - circle.x) ** 2 + (y - circle.y) ** 2) < circle.radius;
-}
+
 
 // Mouse down event
 canvas.addEventListener('mousedown', function(event) {
@@ -254,8 +281,25 @@ function onMouseMove(event) {
     drawCircles();
 }
 
+function updateCircleInFirestore(circle) {
+    const circleRef = getExpectedCircleDoc(circle);
+    const startAngle = getAngle(circle.x - circle.radius, circle.y);
+    const endAngle = getAngle(circle.x + circle.radius, circle.y);
+
+    updateDoc(circleRef, {
+        start: startAngle,
+        end: endAngle,
+        distance: getDistanceFromSonar(circle.x, circle.y)
+    }).then(() => {
+        console.log("Document successfully updated!");
+    }).catch((error) => {
+        console.error("Error updating document: ", error);
+    });
+}
+
 // Mouse up event
 canvas.addEventListener('mouseup', function() {
+    if(draggingCircle) updateCircleInFirestore(draggingCircle)
     draggingCircle = null;
     canvas.removeEventListener('mousemove', onMouseMove);
 });

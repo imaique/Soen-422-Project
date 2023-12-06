@@ -1,130 +1,68 @@
-#include "BluetoothSerial.h"
+/*
+    Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleServer.cpp
+    Ported to Arduino ESP32 by Evandro Copercini
+    updates by chegewara
+*/
 
-String device_name = "ECHOES_Alarm";
-BluetoothSerial SerialBT;
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
 
-int buzzerPin = 21;
+// See the following for generating UUIDs:
+// https://www.uuidgenerator.net/
 
-bool unknown_present = false;
-bool known_present = false;
+HardwareSerial Receiver(2); // Define a Serial port instance called 'Receiver' using serial port 2
 
-int unknowns[180];
-int knowns[180];
+#define Receiver_Txd_pin 17
+#define Receiver_Rxd_pin 16
 
-class AlarmManager {
-  private: 
-    int buzzer_pin;
-    const int frequency_duration = 10; // ms
-    const int MAX_FREQ = 2000;
-    const int MIN_FREQ = 1000;
-    int current_frequency;
-    bool playing = false;
-
-    bool rising;
-    unsigned long start_time = 0;
-
-  public:
-    AlarmManager(int buzzer_pin) : buzzer_pin(buzzer_pin)  {
-      current_frequency = MIN_FREQ;
-      rising = true;
-    }
-    void next_freq() {
-      if(rising) {
-        if(current_frequency == MAX_FREQ) {
-          rising = false;
-          current_frequency--;
-        } else {
-          current_frequency++;
-        }
-      } else {
-        if(current_frequency == MIN_FREQ) {
-          rising = true;
-          current_frequency++;
-        } else {
-          current_frequency--;
-        }
-      }
-    }
-    void play(){
-      playing = true;
-      unsigned long current_time = millis();
-      if(current_time - start_time >= frequency_duration) {
-        start_time = current_time;
-        tone(buzzer_pin, current_frequency);
-        next_freq();
-      }
-    }
-    void stop() {
-      if(playing) {
-        noTone(buzzer_pin);
-        rising = true;
-        current_frequency = 1000;
-        playing = false;
-      }
-    }
-
-};
-
-AlarmManager alarm_manager (buzzerPin);
-
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+BLECharacteristic *pCharacteristic;
 void setup() {
   Serial.begin(115200);
-  pinMode(buzzerPin, OUTPUT);
-  SerialBT.begin(device_name); //Bluetooth device name
-  Serial.printf("The device with name \"%s\" is started.\nNow you can pair it with Bluetooth!\n", device_name.c_str());
-}
+  Serial.println("Starting BLE work!");
 
-int getNextInt() {
-  return SerialBT.readStringUntil(',').toInt();
-}
+  BLEDevice::init("Long name works now");
+  BLEServer *pServer = BLEDevice::createServer();
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  pCharacteristic = pService->createCharacteristic(
+                                         CHARACTERISTIC_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE
+                                       );
 
-void react() {
-  if(unknown_present) {
-    alarm_manager.play();
-  } else {
-    alarm_manager.stop();
-  }
+  pCharacteristic->setValue("{\"object\": {\"start\": 100, \"end\": 120, \"distance\": 50, \"expected\": true, \"timestamp\": \"2023-12-05 18:03:58.726798+00:00\", \"name\": \"unexpected\"}}");
+  pService->start();
+  // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
+  Serial.println("Characteristic defined! Now you can read it in your phone!");
 }
+unsigned long receiverChecked = 0;
+const int receiverPeriod = 100;
 
-void updateAlarm() {
-  unknown_present = false;
-  known_present = false;
-  for(int d : unknowns) {
-    if(d != 0) {
-      unknown_present = true;
-      break;
-    }
-  }
-  for(int d : knowns) {
-    if(d != 0) {
-      known_present = true;
-      break;
-    }
-  }
-}
+unsigned long simulatedTime = 0;
+const int simulatedPeriod = 8000;
+
+const bool simulationON = true;
 
 void loop() {
-  react();
-  if (SerialBT.available()) {
-    int type = getNextInt(), distance = getNextInt(), location = getNextInt();
-
-    switch(type) {
-      case 0:
-        knowns[location] = distance;
-        break;
-      case 1:
-        unknowns[location] = distance;
-        break;
-      case 2:
-        knowns[location] = 0;
-        unknowns[location] = 0;
-        break;      
+  if(receiverChecked + receiverPeriod < millis()) {
+    receiverChecked = millis();
+    if(Receiver.available()) {
+      pCharacteristic->setValue(Receiver.readString().c_str());
     }
-    updateAlarm();
-    Serial.println(type);
-    Serial.println(distance);
-    Serial.println(location);
-    Serial.println();
   }
-  delay(20);
+  if(simulationON && simulatedTime + simulatedPeriod < millis()) {
+    simulatedTime = millis();
+    static bool expected = true;
+    expected = !expected;
+    String value = "{\"object\": {\"start\": 100, \"end\": 120, \"distance\": 50, \"expected\": " + String((expected ? "true" : "false")) + ", \"timestamp\": \"2023-12-05 18:03:58.726798+00:00\", \"name\": \"unexpected\"}}";
+    pCharacteristic->setValue(value.c_str());
+  }
 }

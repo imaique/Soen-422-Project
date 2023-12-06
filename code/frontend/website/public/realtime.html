@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-time Object Detection Viewer</title>
+    <link rel="stylesheet" href="realtime.css">
+</head>
+<body>
+    <h1 id="pageTitle">Real-time Object Detection Viewer</h1>
+    <div class="navbar">
+        <a href="#" class="active" id="realtimeLink">Realtime View</a>
+        <a href="index.html">Scheduler</a>
+    </div>
+    <div class="content">
+        <div id="logContainer">
+            <h2>Detected Object Logs</h2>
+            <div id="logList">
+
+            </div>
+        </div>
+        <canvas id="sonarCanvas" width="500" height="250"></canvas>
+        <div id="objectContainer">
+            <h2>Selected Object Information</h2>
+            <div id="objectInfo">
+                <p>No object selected</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="firebase.js"></script>
+    <script type="module" src="realtime.js"></script>
+</body>
+</html>

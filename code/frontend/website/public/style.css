@@ -1,39 +1,49 @@
+body {
+    margin: 0;
+    padding-top: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    font-family: Arial, sans-serif;
+}
+
 #pageTitle {
     text-align: center;
-    position: absolute;
+    margin-bottom: 20px;
+}
+
+.navbar {
+    display: flex;
+    justify-content: center;
+    justify-content: space-around; 
     width: 100%;
-    top: 0;
-    left: 0;
-    margin-top: 20px; /* Adjust as needed */
-    z-index: 100; /* Ensures the title is above other elements */
+    margin-bottom: 20px;
 }
 
 
-body {
-    padding-top: 60px;
+
+#content {
     display: flex;
-    justify-content: center;
+    justify-content: space-around; 
     align-items: center;
-    height: 100vh;
-    margin: 0;
-    font-family: Arial, sans-serif; /* Ensures consistent font across browsers */
+    width: 80%; /* Adjust as per your layout */
+    margin: 0 auto; /* Centering the content */
 }
 
 #radioButtons {
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* Aligns radio buttons to the left */
+    align-items: flex-start;
 }
 
 #radioButtons label {
     margin-bottom: 5px;
-    display: block;
-    position: relative;
-    padding-left: 25px; /* Adjust as needed for alignment */
-    margin-left: 15px; /* Adjust left margin for overall alignment */
+    padding-left: 25px;
     cursor: pointer;
-    font-size: 14px; /* Adjust as needed */
-    user-select: none; /* Prevents text selection */
+    font-size: 14px;
+    user-select: none;
+    position: relative;
 }
 
 #radioButtons input[type="radio"] {
@@ -69,13 +79,13 @@ body {
 
 canvas {
     border: 1px solid black;
-    margin: 0 20px;
 }
 
 #formContainer {
     display: flex;
     flex-direction: column;
     padding: 20px;
+    width: 30%; /* Adjust width as needed */
 }
 
 form {
@@ -86,5 +96,3 @@ form {
 form label, form input, form button {
     margin-bottom: 10px;
 }
-
-/* Additional styles for form and error message */
