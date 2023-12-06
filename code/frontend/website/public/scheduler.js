@@ -1,6 +1,6 @@
 import { db } from "./firebase.js"
-import { collection, addDoc, deleteDoc, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { arcRadius, arcX, arcY, drawRange, isInsideCircle} from './common.js'
+import { collection, addDoc, deleteDoc, updateDoc, doc, query, where, Timestamp, getDocs  } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { arcRadius, arcX, arcY, drawRange, isInsideCircle, MAX_RANGE, angleToCanvasCoords} from './common.js'
 
 const canvas = document.getElementById('sonarCanvas');
 const ctx = canvas.getContext('2d');
@@ -9,6 +9,16 @@ const errorMessage = document.getElementById('errorMessage');
 const nameInput = document.getElementById('name');
 const startTimeInput = document.getElementById('startTime');
 const endTimeInput = document.getElementById('endTime');
+const refreshButton = document.getElementById('refresh')
+
+
+refreshButton.addEventListener('click', (event) => {
+    const OrderRef = doc(db, 'orders', 'Main Order')
+    updateDoc(OrderRef, {
+        refresh: true
+    })
+})
+
 
 const EXPECTED_OJECT_DB = 'expected_objects';
 
@@ -48,7 +58,7 @@ modeRadios.forEach(radio => {
 function resetForm() {
     let startTime = new Date();
     let endTime = new Date();
-    endTime.setMinutes(endTime.getMinutes() + 1);
+    endTime.setMinutes(endTime.getMinutes() + 4);
 
     nameInput.value = ""
     startTimeInput.value = getFormattedTime(startTime);
@@ -88,25 +98,52 @@ function getAngle(x, y) {
 function getDistanceFromSonar(x, y) {
     const dx = x - arcX;
     const dy = arcY - y; // invert the y-axis because canvas y increases downwards
-    return Math.floor(Math.sqrt(dx * dx + dy * dy));
+    return Math.floor(Math.sqrt(dx * dx + dy * dy) * MAX_RANGE / arcRadius);
 }
 
-function getExpectedObjects() {
-    
+async function getExpectedObjects() {
+    const expected_objects_ref = collection(db, EXPECTED_OJECT_DB)
+    const q = query(expected_objects_ref, where("end_time", ">=", Timestamp.fromDate(new Date())))
+    const querySnapshot = await getDocs(q)
+    let circles = []
+    console.log("ok")
+    querySnapshot.forEach((doc) => {
+        
+        let data = doc.data()
+        console.log('dist')
+        console.log(data.distance)
+        const avgAngle = (data.start + data.end) / 2;
+        const canvasDistance = data.distance * arcRadius / MAX_RANGE
+        console.log(canvasDistance)
+        let { x, y } = angleToCanvasCoords(avgAngle, canvasDistance)
+        let startTime = data.start_time.toDate()
+        let endTime = data.end_time.toDate()
+        let name = data.name
+        let docId = doc.id
+        let radius = 20
+        console.log(x)
+        console.log(y)
+
+        circles.push({x, y, radius, startTime, endTime, name, docId})
+    })
+    return circles
 }
 
 // Array to hold the circles
-let circles = getExpectedObjects();
-
-
+let circles = await getExpectedObjects();
+drawCircles()
+console.log(circles.length)
 
 // Function to add a circle
 function addCircle(x, y, radius, startTime, endTime, name) {
     if (!isInSemiCircle(x,y)) return; // Ensures circles are only in the semi-circle
     circles.push({x, y, radius, startTime, endTime, name});
 
-    const startAngle = getAngle(x - radius, y); // Left point of the circle
-    const endAngle = getAngle(x + radius, y); // Right point of the circle
+    const startAngle = getAngle(x + radius, y);// Left point of the circle
+    const endAngle =  getAngle(x - radius, y); // Right point of the circle
+    console.log(startAngle)
+    console.log(endAngle)
+
     console.log(db)
     addDoc(collection(db, EXPECTED_OJECT_DB), {
         name: name,
@@ -151,8 +188,11 @@ function removeCircle(x, y) {
     drawCircles();
 }
 
+setInterval(drawCircles, 1000)
+
 function activeCircle(circle) {
-    return true
+    console.log(circle.endTime)
+    return circle.endTime.getTime() >= new Date().getTime()
 }
 
 

@@ -20,8 +20,6 @@
             <label for="infoMode">Info</label>
             <input type="radio" id="moveMode" name="mode" value="move">
             <label for="moveMode">Move</label>
-            <input type="radio" id="resizeMode" name="mode" value="resize">
-            <label for="resizeMode">Resize</label>
         </div>
         <canvas id="sonarCanvas" width="500" height="250"></canvas>
         <div id="formContainer">
@@ -47,6 +45,10 @@
                 <p>No object selected</p>
             </div>
         </div>
+
+    </div>
+    <div>
+        <button id="refresh">Refresh Sonar</button>
     </div>
     <script type="module" src="firebase.js"></script>
     <script type="module" src="scheduler.js"></script>

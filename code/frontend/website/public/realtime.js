@@ -1,24 +1,11 @@
 import { db } from "./firebase.js";
 import { collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { arcX, arcY, arcRadius, drawRange, MAX_RANGE, isInsideCircle } from './common.js';
+import { arcX, arcY, arcRadius, drawRange, MAX_RANGE, isInsideCircle, angleToCanvasCoords } from './common.js';
 
 const canvas = document.getElementById('sonarCanvas');
 const ctx = canvas.getContext('2d');
 const logContainer = document.getElementById('logList');
 const objectInfo = document.getElementById('objectInfo');
-
-function angleToCanvasCoords(angle, distance) {
-    // Convert the angle range from [0, 180] to [-90, 90] degrees
-    // Then, convert from degrees to radians
-    const adjustedAngle = angle;
-    const angleRadians = adjustedAngle * (Math.PI / 180);
-
-    // Calculate canvas coordinates
-    const x = arcX + distance * Math.cos(angleRadians);
-    const y = arcY - distance * Math.sin(angleRadians); // Subtract because canvas y-axis is inverted
-    return { x, y };
-}
-
 
 function drawDetectedObject(data) {
     // Assuming average of start and end angles for the object's angle
@@ -42,6 +29,8 @@ function drawDetectedObject(data) {
 }
 let objects = []
 
+const timeOut = 1000 * 40; // 100 seconds
+
 const q = query(collection(db, 'detected_objects'));
 onSnapshot(q, (snapshot) => {
     drawRange(ctx); // Redraw range for each update
@@ -49,12 +38,16 @@ onSnapshot(q, (snapshot) => {
     
     objects = []
     snapshot.forEach((doc) => {
+        
         const data = doc.data();
-        drawDetectedObject(data);
+        
         data.timestamp = data.timestamp.toDate();
-        data.docId = doc.id; // Store for reference on click
-        objects.push(data)
-        console.log(data)
+        if(data.timestamp.getTime() + timeOut >= new Date().getTime()) {
+            drawDetectedObject(data);
+            data.docId = doc.id; // Store for reference on click
+            objects.push(data)
+            console.log(data)
+        }
     });
 
     objects.sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime())

@@ -41,7 +41,8 @@ def requested_refresh(db) -> bool:
         order_dict = order.to_dict()
         refresh = order_dict['refresh']
         if refresh:
-            order.update({'refresh': False})
+            order_ref = order.reference
+            order_ref.update({'refresh': False})
             return True
 
 @https_fn.on_request()
@@ -71,20 +72,42 @@ def on_add_detected_object(request: https_fn.Request) -> https_fn.Response:
     expected_objects = expected_objects_ref.where(filter=FieldFilter('end_time', '>=', timestamp)).stream()
 
     informed_object = None
+    overlap = 0
     for expected_object in expected_objects:
+
+        logger.log('This message will be logged')
+
         expected_object = expected_object.to_dict()
-        if expected_object['start_time'] <= timestamp \
-            and expected_object['start'] <= start_angle + CORRECTION_FACTOR \
-            and expected_object['end'] >= end_angle - CORRECTION_FACTOR:
-            informed_object = {
-                'start': expected_object['start'],
-                'end': expected_object['end'],
-                'distance': expected_object['distance'],
-                'expected': True,
-                'timestamp': timestamp,
-                'name': expected_object['name']
-            }
-            break
+        if expected_object['start_time'] > timestamp:
+            continue
+
+        object_start = expected_object['start']
+        object_end = expected_object['end']
+        if object_start > object_end:
+            temp = object_end
+            object_end = object_start
+            object_start = temp
+        
+        match_end = min(object_end, end_angle)
+        match_start = max(object_start, object_end)
+
+        if match_end < match_start:
+            continue
+        print(overlap)
+        current_overlap = match_end - match_start
+        if current_overlap > overlap:
+            overlap = current_overlap
+            print(overlap)
+            
+            if expected_object['start_time'] <= timestamp:
+                informed_object = {
+                    'start': expected_object['start'],
+                    'end': expected_object['end'],
+                    'distance': expected_object['distance'],
+                    'expected': True,
+                    'timestamp': timestamp,
+                    'name': expected_object['name']
+                }
 
     if informed_object is None:
         # No match, save the incoming object data to detected_objects
